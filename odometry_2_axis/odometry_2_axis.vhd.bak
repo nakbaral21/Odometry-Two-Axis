@@ -1,0 +1,178 @@
+LIBRARY IEEE ;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+ENTITY odometry_2_axis IS
+
+    PORT		(rot0_a, rot0_b, rot1_a, rot1_b							: in STD_LOGIC;
+				 lout02, lout01, lout00, lout12, lout11, lout10		: out STD_LOGIC_VECTOR (6 downto 0));
+				 
+END odometry_2_axis;
+
+ARCHITECTURE logic OF odometry_2_axis IS
+	
+	SIGNAL a0prev			:	STD_LOGIC						  	:= rot0_a;
+	SIGNAL a1prev			:	STD_LOGIC						  	:= rot1_a;
+	SIGNAL counter0 		:	STD_LOGIC_VECTOR (11 DOWNTO 0):= "000000000000";
+	SIGNAL counter1 		:	STD_LOGIC_VECTOR (11 DOWNTO 0):= "000000000000";
+	SIGNAL distancetemp	:	STD_LOGIC_VECTOR (20 DOWNTO 0):= "000000000000000000000";
+	SIGNAL distance		:	STD_LOGIC_VECTOR (9 DOWNTO 0)	:= "0000000000";
+	SIGNAL bcd00				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	SIGNAL bcd01				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	SIGNAL bcd02				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	SIGNAL bcd10				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	SIGNAL bcd11				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	SIGNAL bcd12				:	STD_LOGIC_VECTOR (3 DOWNTO 0)	:= "0000";
+	
+BEGIN
+	PROCESS (rot_a, rot_b)
+	variable Z		:	STD_LOGIC_VECTOR (21 DOWNTO 0);
+   BEGIN
+		--memastikan nilai z kembali 0
+		FOR i in 0 to 21 LOOP
+			Z(i) := '0';
+		END LOOP;
+		--rotary encoder 0
+		IF (rot0_a /= a0prev) THEN
+			IF (rot0_b /= rot0_a) THEN
+				IF (counter0 < "100010001110") THEN
+					counter0 <= counter0 + 1;
+				ELSE
+					counter0 <= "000000000000";
+				END IF;
+			ELSIF (rot0_b = rot0_a) THEN
+				IF (counter0 > "000000000000") THEN
+					counter0 <= counter0 - 1;
+				ELSE
+					counter0 <= "100010001110";
+				END IF;
+			END IF;
+		END IF;
+		a0prev <= rot0_a;
+		--hitung jarak 0
+		distancetemp <= counter0 * "111010011";
+		distance <= distancetemp(19 DOWNTO 10);
+		--convert ke bcd 0
+		Z(12 DOWNTO 3) := distance;
+		FOR i IN 0 TO 6 LOOP
+			IF Z(13 DOWNTO 10) > "0100" THEN
+				Z(13 DOWNTO 10) := Z(13 DOWNTO 10) + "0011";
+			END IF;
+			IF Z(17 DOWNTO 14) > "0100" THEN
+				Z(17 DOWNTO 14) := Z(17 DOWNTO 14) + "0011";
+			END IF;
+			Z(21 DOWNTO 1) := Z(20 DOWNTO 0);
+		END LOOP;
+		bcd00 <= Z(13 DOWNTO 10);
+		bcd01 <= Z(17 DOWNTO 14);
+		bcd02 <= Z(21 DOWNTO 18);
+		--rotary encoder 1
+		IF (rot1_a /= a1prev) THEN
+			IF (rot1_b /= rot1_a) THEN
+				IF (counter1 < "100010001110") THEN
+					counter1 <= counter1 + 1;
+				ELSE
+					counter1 <= "000000000000";
+				END IF;
+			ELSIF (rot1_b = rot1_a) THEN
+				IF (counter1 > "000000000000") THEN
+					counter1 <= counter1 - 1;
+				ELSE
+					counter1 <= "100010001110";
+				END IF;
+			END IF;
+		END IF;
+		a1prev <= rot1_a;
+		--hitung jarak 1
+		distancetemp <= counter1 * "111010011";
+		distance <= distancetemp(19 DOWNTO 10);
+		--convert ke bcd 1
+		Z(12 DOWNTO 3) := distance;
+		FOR i IN 0 TO 6 LOOP
+			IF Z(13 DOWNTO 10) > "0100" THEN
+				Z(13 DOWNTO 10) := Z(13 DOWNTO 10) + "0011";
+			END IF;
+			IF Z(17 DOWNTO 14) > "0100" THEN
+				Z(17 DOWNTO 14) := Z(17 DOWNTO 14) + "0011";
+			END IF;
+			Z(21 DOWNTO 1) := Z(20 DOWNTO 0);
+		END LOOP;
+		bcd10 <= Z(13 DOWNTO 10);
+		bcd11 <= Z(17 DOWNTO 14);
+		bcd12 <= Z(21 DOWNTO 18);
+	END PROCESS;
+	
+	--seven segment
+	lout00 <= 	"0000001" when bcd00 = "0000" else
+					"1001111" when bcd00 = "0001" else
+					"0010010" when bcd00 = "0010" else
+					"0000110" when bcd00 = "0011" else
+					"1001100" when bcd00 = "0100" else
+					"0100100" when bcd00 = "0101" else
+					"0100000" when bcd00 = "0110" else
+					"0001111" when bcd00 = "0111" else
+					"0000000" when bcd00 = "1000" else
+					"0000100" when bcd00 = "1001" else
+					"0110000";
+					
+	lout01 <= 	"0000001" when bcd01 = "0000" else
+					"1001111" when bcd01 = "0001" else
+					"0010010" when bcd01 = "0010" else
+					"0000110" when bcd01 = "0011" else
+					"1001100" when bcd01 = "0100" else
+					"0100100" when bcd01 = "0101" else
+					"0100000" when bcd01 = "0110" else
+					"0001111" when bcd01 = "0111" else
+					"0000000" when bcd01 = "1000" else
+					"0000100" when bcd01 = "1001" else
+					"0110000";
+				
+	lout02 <= 	"0000001" when bcd02 = "0000" else
+					"1001111" when bcd02 = "0001" else
+					"0010010" when bcd02 = "0010" else
+					"0000110" when bcd02 = "0011" else
+					"1001100" when bcd02 = "0100" else
+					"0100100" when bcd02 = "0101" else
+					"0100000" when bcd02 = "0110" else
+					"0001111" when bcd02 = "0111" else
+					"0000000" when bcd02 = "1000" else
+					"0000100" when bcd02 = "1001" else
+					"0110000";
+					
+	lout10 <= 	"0000001" when bcd10 = "0000" else
+					"1001111" when bcd10 = "0001" else
+					"0010010" when bcd10 = "0010" else
+					"0000110" when bcd10 = "0011" else
+					"1001100" when bcd10 = "0100" else
+					"0100100" when bcd10 = "0101" else
+					"0100000" when bcd10 = "0110" else
+					"0001111" when bcd10 = "0111" else
+					"0000000" when bcd10 = "1000" else
+					"0000100" when bcd10 = "1001" else
+					"0110000";
+					
+	lout11 <= 	"0000001" when bcd11 = "0000" else
+					"1001111" when bcd11 = "0001" else
+					"0010010" when bcd11 = "0010" else
+					"0000110" when bcd11 = "0011" else
+					"1001100" when bcd11 = "0100" else
+					"0100100" when bcd11 = "0101" else
+					"0100000" when bcd11 = "0110" else
+					"0001111" when bcd11 = "0111" else
+					"0000000" when bcd11 = "1000" else
+					"0000100" when bcd11 = "1001" else
+					"0110000";
+				
+	lout12 <= 	"0000001" when bcd12 = "0000" else
+					"1001111" when bcd12 = "0001" else
+					"0010010" when bcd12 = "0010" else
+					"0000110" when bcd12 = "0011" else
+					"1001100" when bcd12 = "0100" else
+					"0100100" when bcd12 = "0101" else
+					"0100000" when bcd12 = "0110" else
+					"0001111" when bcd12 = "0111" else
+					"0000000" when bcd12 = "1000" else
+					"0000100" when bcd12 = "1001" else
+					"0110000";
+END logic;
